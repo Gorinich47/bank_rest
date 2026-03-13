@@ -1,0 +1,54 @@
+databaseChangeLog:
+  - changeSet:
+      id: V1__ord1_create_status_card_table
+      author: gin
+      changes:
+        - createTable:
+            tableName: status_card
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: name
+                  type: VARCHAR(50)
+                  constraints:
+                    unique: true
+                    nullable: false
+
+        - insert:
+            tableName: status_card
+            columns:
+              - column:
+                  name: name
+                  value: NEW_CARD
+
+        - insert:
+            tableName: status_card
+            columns:
+              - column:
+                  name: name
+                  value: ACTIVE
+        - insert:
+            tableName: status_card
+            columns:
+              - column:
+                  name: name
+                  value: BLOCK_REQUEST
+        - insert:
+            tableName: status_card
+            columns:
+              - column:
+                  name: name
+                  value: BLOCKED
+
+        - insert:
+            tableName: status_card
+            columns:
+              - column:
+                  name: name
+                  value: EXPIRED

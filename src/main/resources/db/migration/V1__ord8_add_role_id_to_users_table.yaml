@@ -1,0 +1,12 @@
+databaseChangeLog:
+  - changeSet:
+      id: V1__ord8_add_role_id_to_users_table
+      author: gin
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: role_id
+                  type: BIGINT
+                  defaultValue: 1

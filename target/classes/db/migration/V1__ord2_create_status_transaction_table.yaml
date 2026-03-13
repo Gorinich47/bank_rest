@@ -1,0 +1,46 @@
+databaseChangeLog:
+  - changeSet:
+      id: V1__ord2_create_status_transaction_table
+      author: gin
+      changes:
+        - createTable:
+            tableName: status_transaction
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: name
+                  type: VARCHAR(50)
+                  constraints:
+                    unique: true
+                    nullable: false
+
+        - insert:
+            tableName: status_transaction
+            columns:
+              - column:
+                  name: name
+                  value: SUCCESSFUL
+        - insert:
+            tableName: status_transaction
+            columns:
+              - column:
+                  name: name
+                  value: CANCELED
+        - insert:
+            tableName: status_transaction
+            columns:
+              - column:
+                  name: name
+                  value: WAITING
+        - insert:
+            tableName: status_transaction
+            columns:
+              - column:
+                  name: name
+                  value: ERROR

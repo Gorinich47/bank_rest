@@ -1,9 +1,76 @@
-# 
 # docker-compose.yml — определяет сервисы для разработки и тестирования.
 
-Что нужно сделать:
-  - Настроить сервисы для:
-      - PostgreSQL (или MySQL) с начальной базой.
-      - Приложения Spring Boot (если нужно).
-  - Открыть нужные порты (например, 5432, 8080).
-  - Настроить volume для хранения данных БД.
+#Что нужно сделать:
+#  - Настроить сервисы для:
+#      - PostgreSQL (или MySQL) с начальной базой.
+#      - Приложения Spring Boot (если нужно).
+#  - Открыть нужные порты (например, 5432, 8080).
+#  - Настроить volume для хранения данных БД.
+
+#version: '3.8'
+
+services:
+  # PostgreSQL
+  postgres-db:
+    image: postgres:18-alpine
+    container_name: bankcards_postgres
+    environment:
+      POSTGRES_DB: bankcards
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 2133
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "15432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: unless-stopped
+
+  # PostgreSQL GUI Tool
+  pgadmin:
+    container_name: pgadmin4_container
+    image: dpage/pgadmin4:7
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: root
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+  # Наш REST сервис
+  app-serv-bank:
+      image: client:0.0.1
+      build:
+        context: .
+        dockerfile: Dockerfile
+      #container_name: my-serv-app-bank
+      depends_on:
+        - postgres-db
+      environment:
+        - SERVER_PORT= 8088
+        - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db/bankcards
+
+# Всё прописано в application.yaml, при желании можно использовать переменные окружений
+#        SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:15432/bankcards
+#        SPRING_DATASOURCE_USERNAME: postgres
+#        SPRING_DATASOURCE_PASSWORD: 2133
+#        SPRING_JPA_HIBERNATE_DDL_AUTO: update
+#        SECURITY_JWT_SECRET_KEY: k3R8nh9sZ7v5wWmQ2xP1aB6cD4eF7gH0iJ9kL3mN5oQ=
+      ports:
+        - "8088:8088"
+      restart: always
+
+#Пока без healthcheck
+#    healthcheck:
+#      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+#      interval: 30s
+#      timeout: 10s
+#      retries: 5
+
+# Создание томов для контейнеров
+volumes:
+  db-data:
+  pgadmin-data:
+
+# docker-compose up и всё должно взлететь (обычно)

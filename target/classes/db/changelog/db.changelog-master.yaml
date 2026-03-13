@@ -1,0 +1,21 @@
+databaseChangeLog:
+  - include:
+      file: db/migration/V1__ord1_create_status_card_table.yaml
+  - include:
+      file: db/migration/V1__ord2_create_status_transaction_table.yaml
+  - include:
+      file: db/migration/V1__ord3_create_roles_table.yaml
+  - include:
+      file: db/migration/V1__ord4_create_user_table.yaml
+  - include:
+      file: db/migration/V1__ord5_create_cards_table.yaml
+  - include:
+      file: db/migration/V1__ord6_create_tokens_table.yaml
+  - include:
+      file: db/migration/V1__ord7_create_transaction_table.yaml
+#  - include:
+#      file: db/migration/V1__ord8_add_role_id_to_users_table.yaml
+  - include:
+      file: db/migration/V1__ord9_create_fk_for_table.yaml
+#  - include:
+#      file: db/migration/V1__ord10_insert_roles_table.yaml

@@ -1,0 +1,97 @@
+databaseChangeLog:
+  - changeSet:
+      id: V1__ord3_create_roles_table
+      author: gin
+      changes:
+        - createTable:
+            tableName: roles
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: name
+                  type: VARCHAR(50)
+                  constraints:
+                    unique: true
+                    nullable: false
+
+#        - insert:
+#            tableName: roles
+#            columns:
+#              - column:
+#                  name: id
+#                  valueNumeric: 0
+#                  value: SUPER_ADMIN
+        - insert:
+            tableName: roles
+            columns:
+#              - column:
+#                  name: id
+#                  valueNumeric: 1
+              - column:
+                  name: name
+                  value: ADMIN
+        - insert:
+            tableName: roles
+            columns:
+#              - column:
+#                  name: id
+#                  valueNumeric: 2
+              - column:
+                  name: name
+                  value: USER
+        - insert:
+            tableName: roles
+            columns:
+#              - column:
+#                  name: id
+#                  valueNumeric: 3
+              - column:
+                  name: name
+                  value: GUEST
+        - createIndex:
+            tableName: roles
+            indexName: idx_roles_name
+            columns:
+              - column:
+                  name: name
+            unique: true
+
+#  - changeSet:
+#      id: V1__ord3_insert_roles_table_1
+#      author: gin
+#      changes:
+#        - sql:
+#            # Multi-line SQL statements are fine here
+#            splitStatements: true
+#            endDelimiter: ;
+#            comment: "добавление данных в таблицу"
+#            dbms: postgresql
+#            sql: |
+#              INSERT INTO public.roles(id, name)  VALUES (1, 'ADMIN');
+#              INSERT INTO public.roles(id, name)  VALUES (2, 'USER');
+#              INSERT INTO public.roles(id, name)  VALUES (3, 'GUEST');
+
+#  - changeSet:
+#      id: V1__add_role_to_user
+#      author: gin
+#      changes:
+#        - addColumn:
+#            tableName: users
+#            columns:
+#              - column:
+#                  name: role_id
+#                  type: BIGINT
+#                  defaultValue: 1
+#
+#        - addForeignKeyConstraint:
+#            baseTableName: users
+#            baseColumnNames: role_id
+#            constraintName: fk_users_role
+#            referencedTableName: roles
+#            referencedColumnNames: id

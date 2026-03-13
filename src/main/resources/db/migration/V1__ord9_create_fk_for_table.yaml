@@ -1,0 +1,45 @@
+databaseChangeLog:
+  - changeSet:
+      id: V1__ord9_create_fk_for_table
+      author: gin
+      changes:
+
+#        # FK для связи между таблицами Roles и Users
+#        - addForeignKeyConstraint:
+#            baseTableName: users
+#            baseColumnNames: role_id
+#            constraintName: fk_users_role
+#            referencedTableName: roles
+#            referencedColumnNames: id
+
+        # FK для связи между таблицами Users и Cards
+        - addForeignKeyConstraint:
+            baseTableName: cards
+            baseColumnNames: user_id
+            constraintName: fk_cards_user
+            referencedTableName: users
+            referencedColumnNames: id
+
+        # FK для связи между таблицами Users и Tokens
+        - addForeignKeyConstraint:
+            baseTableName: tokens
+            baseColumnNames: user_id
+            constraintName: fk_tokens_user
+            referencedTableName: users
+            referencedColumnNames: id
+
+        # FK для связи между таблицами Cards и Transaction
+        - addForeignKeyConstraint:
+            baseTableName: transactions
+            baseColumnNames: sender_card_id
+            constraintName: fk_transaction_sender_card
+            referencedTableName: cards
+            referencedColumnNames: id
+
+        # FK для связи между таблицами Cards и Transaction
+        - addForeignKeyConstraint:
+            baseTableName: transactions
+            baseColumnNames: receiver_card_id
+            constraintName: fk_transaction_receiver_card
+            referencedTableName: cards
+            referencedColumnNames: id

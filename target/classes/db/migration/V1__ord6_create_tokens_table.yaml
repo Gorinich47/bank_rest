@@ -1,0 +1,48 @@
+databaseChangeLog:
+  - changeSet:
+      id: V1__ord6_create_tokens_table
+      author: gin
+      changes:
+        - createTable:
+            tableName: tokens
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: access_token
+                  type: TEXT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: refresh_token
+                  type: TEXT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: logged_out
+                  type: BOOLEAN
+                  defaultValue: false
+                  constraints:
+                    nullable: false
+
+        - createIndex:
+            tableName: tokens
+            indexName: idx_tokens_access
+            columns:
+              - name: access_token
+
+        - createIndex:
+            tableName: tokens
+            indexName: idx_tokens_refresh
+            columns:
+              - name: refresh_token
