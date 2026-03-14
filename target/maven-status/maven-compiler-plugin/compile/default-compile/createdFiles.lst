@@ -3,6 +3,7 @@ com\example\bankcards\dto\CardRegistrationDto$CardRegistrationDtoBuilder.class
 com\example\bankcards\dto\ErrorResponseDTO$ErrorResponseDTOBuilder.class
 com\example\bankcards\entity\RoleEntity$RoleEntityBuilder.class
 com\example\bankcards\controller\UserController.class
+com\example\bankcards\service\CheckService.class
 com\example\bankcards\config\LiquibaseConfig.class
 com\example\bankcards\service\UserServiceImpl.class
 com\example\bankcards\controller\CardController.class
@@ -27,6 +28,7 @@ com\example\bankcards\dto\CardDto.class
 com\example\bankcards\repository\TokensRepository.class
 com\example\bankcards\dto\TokenResponseDto$TokenResponseDtoBuilder.class
 com\example\bankcards\entity\Card$CardBuilder.class
+com\example\bankcards\util\FieldChecker.class
 com\example\bankcards\BankCardsApplication.class
 com\example\bankcards\repository\UserRepository.class
 com\example\bankcards\entity\Token$TokenBuilder.class
@@ -40,6 +42,7 @@ com\example\bankcards\dto\CardBalansDto.class
 com\example\bankcards\config\JwtConfig.class
 com\example\bankcards\config\SecurityConfig.class
 com\example\bankcards\service\TransactionService.class
+com\example\bankcards\util\CheckField.class
 com\example\bankcards\dto\CardBalansDto$CardBalansDtoBuilder.class
 com\example\bankcards\dto\TransactionDto.class
 com\example\bankcards\entity\RoleEntity.class

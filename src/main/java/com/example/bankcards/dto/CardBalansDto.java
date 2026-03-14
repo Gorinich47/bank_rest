@@ -2,6 +2,7 @@
 package com.example.bankcards.dto;
 
 import com.example.bankcards.enums.StatusCard;
+import com.example.bankcards.util.CheckField;
 import lombok.*;
 
 import java.math.BigDecimal;

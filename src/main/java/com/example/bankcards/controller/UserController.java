@@ -23,20 +23,19 @@ import java.util.List;
 @Tag(name = "Контроллер пользователи", description = "Управление пользователями. Администратор может получить данные всех или конкретного пользователей, может удалить пользователя")
 public class UserController {
 
-    private final UserRepository userRepository;
+    private final UserService userService;
 
     @Autowired
-    public UserController(UserRepository userRepository) {
-        this.userRepository = userRepository;
+    public UserController(UserService userService) {
+        this.userService = userService;
     }
 
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/{id}")
     @Operation(summary = "Получение данных о пользователе", description = "")
     public ResponseEntity<UserDto> getUserById(@PathVariable Long id) {
-        return userRepository.findById(id)
-                .map(user -> ResponseEntity.ok(UserDtoMapper.toDto(user)))
-                .orElse(ResponseEntity.notFound().build());
+        UserDto userDto = userService.findByIdDto(id);
+        return ResponseEntity.ok(userDto);
     }
 
     @PreAuthorize("hasRole('ADMIN')")
@@ -45,8 +44,7 @@ public class UserController {
     public ResponseEntity<PagedResponse<UserDto>> getAllUsers(@RequestParam(defaultValue = "0") int page,
                                                               @RequestParam(defaultValue = "10") int size) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<User> users = userRepository.findAll(pageable);
-        Page<UserDto> UsersDto = users.map(UserDtoMapper::toDto);
+        Page<UserDto> UsersDto = userService.findAllDto(pageable);
         return ResponseEntity.ok(PagedResponse.fromPage(UsersDto));
     }
 
@@ -54,7 +52,7 @@ public class UserController {
     @DeleteMapping("/{id}")
     @Operation(summary = "Удаление конкретного пользователя", description = "")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
-        userRepository.deleteById(id);
+        userService.deleteById(id);
         return ResponseEntity.noContent().build();
     }
 

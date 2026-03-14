@@ -6,6 +6,7 @@ import com.example.bankcards.repository.TokensRepository;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
@@ -16,6 +17,8 @@ public class JwtService {
 
     private final JwtConfig jwtConfig;
     private final TokensRepository tokensRepository;
+
+    @Autowired
     public JwtService(TokensRepository tokensRepository, JwtConfig jwtConfig) {
         this.tokensRepository = tokensRepository;
         this.jwtConfig = jwtConfig;

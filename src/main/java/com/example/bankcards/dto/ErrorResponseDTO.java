@@ -18,7 +18,7 @@ public class ErrorResponseDTO {
      private Integer status;
      private String error;
      private String message;
-     private String details;
+     private Object details;
 
 
      public ErrorResponseDTO(HttpStatus httpStatus, Exception exception, String errorMessage, String error, String url){
@@ -37,6 +37,24 @@ public class ErrorResponseDTO {
           this.message = errorMessage;
           this.details = exception.getMessage();
           this.path = "/api";
+     }
+
+     public ErrorResponseDTO(HttpStatus httpStatus, String errorMessage, String error){
+          this.timestamp = LocalDateTime.now();
+          this.status = httpStatus.value();
+          this.error = error;
+          this.message = errorMessage;
+          this.details = errorMessage;
+          this.path = "/api";
+     }
+
+     public ErrorResponseDTO(HttpStatus httpStatus, String errorMessage, String error, Object details, String url){
+          this.timestamp = LocalDateTime.now();
+          this.status = httpStatus.value();
+          this.error = error;
+          this.message = errorMessage;
+          this.details = details;
+          this.path = url;
      }
 
      public ErrorResponseDTO(HttpStatus httpStatus, Exception exception, String error){

@@ -6,6 +6,7 @@ import com.example.bankcards.entity.Card;
 import com.example.bankcards.entity.User;
 import com.example.bankcards.enums.Role;
 import com.example.bankcards.enums.StatusCard;
+import com.example.bankcards.exception.ResourceNotFoundException;
 import com.example.bankcards.repository.CardRepository;
 import com.example.bankcards.repository.UserRepository;
 import com.example.bankcards.service.*;
@@ -56,13 +57,13 @@ public class CardControllerTest {
     private CardService cardService;
 
     @MockitoBean
-    private UserRepository userRepository;
-
-    @MockitoBean
     private CardRepository cardRepository;
 
     @MockitoBean
     private AuthService authService;
+
+    @MockitoBean
+    private com.example.bankcards.service.CheckService checkDto;
 
     @MockitoBean // Создает мок и кладет его в контекст теста
     private  com.example.bankcards.service.JwtService jwtService;
@@ -70,8 +71,12 @@ public class CardControllerTest {
     @MockitoBean(name = "userService") // Создает мок и кладет его в контекст теста
     private com.example.bankcards.service.UserService userService;
 
+    private final MockMvc mockMvc;
+
     @Autowired
-    private MockMvc mockMvc;
+    CardControllerTest(MockMvc mockMvc){
+        this.mockMvc = mockMvc;
+    }
 
     private Card card;
     private CardDto cardDto;
@@ -295,7 +300,7 @@ public class CardControllerTest {
 
         User user = User.builder().id(1L).username("user").build();
 
-        when(userRepository.findByUsername("user")).thenReturn(Optional.of(user));
+        when(userService.findByUsername("user")).thenReturn(user);
         when(cardService.save(any(Card.class))).thenReturn(card);
 
         mockMvc.perform(post("/api/cards/create")
@@ -314,10 +319,12 @@ public class CardControllerTest {
     @Test
     @WithMockUser(roles = ROLE_ADMIN)
     void createCard_UserNotFound_ReturnsBadRequest() throws Exception {
+
         CardRegistrationDto regDto = new CardRegistrationDto();
         regDto.setUsername("unknown");
 
-        when(userRepository.findByUsername("unknown")).thenReturn(Optional.empty());
+        when(userService.findByUsername("unknown"))
+                 .thenThrow(new ResourceNotFoundException("Пользователь с именем 'unknown' не существует"));
 
         mockMvc.perform(post("/api/cards/create")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -326,7 +333,9 @@ public class CardControllerTest {
                                     "username": "unknown"
                                 }
                                 """))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.message").value("Пользователь с именем 'unknown' не существует"));
     }
 
     @Test
@@ -340,8 +349,8 @@ public class CardControllerTest {
         User user1 = User.builder().id(1L).username("user1").build();
         User user2 = User.builder().id(2L).username("user2").build();
 //
-           when(userRepository.findByUsername("user1")).thenReturn(Optional.of(user1));
-           when(userRepository.findByUsername("user2")).thenReturn(Optional.of(user2));
+        when(userService.findByUsername("user1")).thenReturn(user1);
+        when(userService.findByUsername("user2")).thenReturn(user2);
 
         AtomicLong idGenerator = new AtomicLong(1);
 
@@ -366,21 +375,29 @@ public class CardControllerTest {
 
     @Test
     @WithMockUser(roles = ROLE_ADMIN)
-    void createListCard_OneUserNotFound_ReturnsBadRequest() throws Exception {
+    void createListCard_OneUserNotFound_ReturnsNotFound() throws Exception {
 
         User user = User.builder().id(1L).build();
-        when(userRepository.findByUsername("user1")).thenReturn(Optional.of(user));
-        when(userRepository.findByUsername("unknown")).thenReturn(Optional.empty());
+
+        doNothing().when(checkDto).checkFields(any(CardRegistrationDto.class));
+
+
+        when(userService.findByUsername("unknown"))
+                .thenThrow(new ResourceNotFoundException("Пользователь с именем 'unknown' не существует"));
+
+        when(userService.findByUsername("user1")).thenReturn(user);
 
         mockMvc.perform(post("/api/cards/create_list")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 [
-                                    {"username": "user1"},
-                                    {"username": "unknown"}
+                                    {"username": "unknown"},
+                                    {"username": "user1"}
                                 ]
                                 """))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.message").value("Пользователь с именем 'unknown' не существует"));
     }
 
     @Test

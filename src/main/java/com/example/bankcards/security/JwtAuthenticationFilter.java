@@ -20,10 +20,17 @@ import java.io.IOException;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    @Autowired(required=true)
+    //@Autowired(required=true)
     private JwtService jwtService;
-    @Autowired(required=true)
+
+   // @Autowired(required=true)
     private UserService userService;
+
+    @Autowired(required=true)
+    JwtAuthenticationFilter(JwtService jwtService, UserService userService){
+        this.jwtService = jwtService;
+        this.userService = userService;
+    }
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,

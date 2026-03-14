@@ -1,9 +1,11 @@
 package com.example.bankcards.service;
 
 import com.example.bankcards.dto.TransactionDto;
+import com.example.bankcards.dto.TransferDto;
 import com.example.bankcards.entity.Card;
 import com.example.bankcards.entity.Transaction;
 import com.example.bankcards.enums.StatusCard;
+import com.example.bankcards.exception.AlreadyExistsException;
 import com.example.bankcards.repository.CardRepository;
 import com.example.bankcards.repository.TransactionRepository;
 
@@ -22,15 +24,29 @@ public class TransactionService {
 
     private final TransactionRepository transactionRepository;
     private final CardRepository cardRepository;
+    private final CheckService checkService;
+    private final UserService userService;
 
     @Autowired
-    public TransactionService(TransactionRepository transactionRepository, CardRepository cardRepository) {
+    public TransactionService(TransactionRepository transactionRepository, CardRepository cardRepository, UserService userService, CheckService checkService) {
         this.transactionRepository = transactionRepository;
         this.cardRepository = cardRepository;
+        this.userService = userService;
+        this.checkService = checkService;
     }
 
     @Transactional
-    public TransactionDto transferBetweenUserCards(Long userId, Long fromCardId, Long toCardId, BigDecimal amount, String comment) {
+    public TransactionDto transferBetweenUserCards(TransferDto transferDto) {
+
+        checkService.checkFields(transferDto);
+
+        Long userId = userService.getCurrentUserId();
+        Long fromCardId = transferDto.getSenderCardId();
+        Long toCardId = transferDto.getReceiverCardId();
+        BigDecimal amount = transferDto.getAmount();
+        String comment = transferDto.getDescription()==null ? "" :  transferDto.getDescription();
+
+
         if (fromCardId.equals(toCardId)) {
             throw new IllegalArgumentException("Нельзя перевести деньги с карты на ту же самую карту");
         }
@@ -45,12 +61,16 @@ public class TransactionService {
             throw new IllegalArgumentException("Недостаточно средств на карте");
         }
 
-        if (senderCard.getStatus() != StatusCard.ACTIVE) {
-            throw new IllegalArgumentException("Карта отправителя заблокирована или срок действия истек");
+        if (receiverCard.getStatus() == StatusCard.NEW_CARD) {
+            throw new AlreadyExistsException("Карта получателя не активирована");
         }
 
-        if (receiverCard.getStatus() != StatusCard.ACTIVE) {
-            throw new IllegalArgumentException("Карта получателя заблокирована или срок действия истек");
+        if (senderCard.getStatus() == StatusCard.EXPIRED) {
+            throw new AlreadyExistsException("У карты срок действия истек");
+        }
+
+        if (receiverCard.getStatus() == StatusCard.BLOCK_REQUEST || receiverCard.getStatus() == StatusCard.BLOCKED) {
+            throw new AlreadyExistsException("Карта получателя заблокирована");
         }
 
         // Списание

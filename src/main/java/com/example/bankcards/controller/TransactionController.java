@@ -3,10 +3,12 @@ package com.example.bankcards.controller;
 import com.example.bankcards.dto.PagedResponse;
 import com.example.bankcards.dto.TransactionDto;
 import com.example.bankcards.dto.TransferDto;
+import com.example.bankcards.service.CheckService;
 import com.example.bankcards.service.TransactionService;
 import com.example.bankcards.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -28,27 +30,17 @@ import java.time.LocalDateTime;
 public class TransactionController {
 
     private final TransactionService transactionService;
-    private final UserService userService;
 
     @Autowired
-    public TransactionController(TransactionService transactionService, UserService userService) {
+    public TransactionController(TransactionService transactionService) {
         this.transactionService = transactionService;
-        this.userService = userService;
     }
 
     // Пользователь: делает перевод между своими картами
     @PostMapping("/transfer")
     @Operation(summary = "Перевод между картами", description = "Пользователь может перевести деньги с одной карты на другую")
-    public ResponseEntity<TransactionDto> transferBetweenCards(@RequestBody TransferDto transferDto) {
-        String description = transferDto.getDescription();
-
-        TransactionDto transaction = transactionService.transferBetweenUserCards(
-                userService.getCurrentUserId(),
-                transferDto.getSenderCardId(),
-                transferDto.getReceiverCardId(),
-                transferDto.getAmount(),
-                description==null ? "" :  description);
-
+    public ResponseEntity<TransactionDto> transferBetweenCards(@RequestBody @Valid TransferDto transferDto) {
+        TransactionDto transaction = transactionService.transferBetweenUserCards(transferDto);
         return ResponseEntity.ok(transaction);
     }
 

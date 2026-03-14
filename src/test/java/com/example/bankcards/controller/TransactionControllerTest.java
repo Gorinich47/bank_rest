@@ -2,10 +2,12 @@ package com.example.bankcards.controller;
 
 import com.example.bankcards.config.SecurityConfig;
 import com.example.bankcards.dto.*;
+import com.example.bankcards.util.*;
 import com.example.bankcards.entity.User;
 import com.example.bankcards.enums.Role;
 import com.example.bankcards.enums.StatusCard;
 import com.example.bankcards.enums.StatusTransaction;
+import com.example.bankcards.service.CheckService;
 import com.example.bankcards.service.TransactionService;
 import com.example.bankcards.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,11 +47,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(com.example.bankcards.controller.TransactionController.class)
 public class TransactionControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-
     @MockitoBean
     private TransactionService transactionService;
+
+    @MockitoBean
+    private com.example.bankcards.service.CheckService checkDto;
 
     @MockitoBean // Создает мок и кладет его в контекст теста
     private  com.example.bankcards.service.JwtService jwtService;
@@ -63,6 +65,13 @@ public class TransactionControllerTest {
     private TransferDto transferDto;
     private TransactionDto transactionDto;
     private PagedResponse<TransactionDto> pagedResponse;
+
+    private final MockMvc mockMvc;
+
+    @Autowired
+    TransactionControllerTest(MockMvc mockMvc){
+        this.mockMvc = mockMvc;
+    }
 
     @BeforeEach
     void setUp() {
@@ -122,6 +131,8 @@ public class TransactionControllerTest {
     @Test
     @WithMockUser(roles = "USER")
     void transferBetweenCards_ValidData_ReturnsTransactionDto() throws Exception {
+
+        doNothing().when(checkDto).checkFields(any(TransferDto.class));
         when(userService.getCurrentUserId()).thenReturn(1L);
         when(transactionService.transferBetweenUserCards(
                 anyLong(), anyLong(), anyLong(), any(BigDecimal.class), anyString()))
@@ -149,6 +160,8 @@ public class TransactionControllerTest {
     @Test
     @WithMockUser(roles = "USER")
     void transferBetweenCards_MissingDescription_UsesEmptyString() throws Exception {
+
+        doNothing().when(checkDto).checkFields(any(TransferDto.class));
         when(userService.getCurrentUserId()).thenReturn(1L);
         when(transactionService.transferBetweenUserCards(
                 anyLong(), anyLong(), anyLong(), any(BigDecimal.class), anyString()))
@@ -169,6 +182,57 @@ public class TransactionControllerTest {
 
         verify(transactionService, times(1)).transferBetweenUserCards(
                 anyLong(), anyLong(), anyLong(), any(BigDecimal.class), eq(""));
+    }
+
+    @Test
+    @WithMockUser(roles = "USER")
+    void transferBetweenCards_MissingDescription_ReturnsUnprocessableContent_Null_senderCardId() throws Exception {
+
+        doThrow(new IllegalArgumentException("senderCardId: ID карты не может быть пустым"))
+                .when(checkDto).checkFields(any(TransferDto.class));
+
+        when(userService.getCurrentUserId()).thenReturn(1L);
+        when(transactionService.transferBetweenUserCards(
+                anyLong(), anyLong(), anyLong(), any(BigDecimal.class), anyString()))
+                .thenReturn(transactionDto);
+
+        mockMvc.perform(post("/api/transactions/transfer")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "receiverCardId": 2,
+                                    "amount": 100.0
+                                }
+                                """))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$[0].status").value(422))
+                .andExpect(jsonPath("$[0].message").value("senderCardId: ID карты не может быть пустым"));
+    }
+
+    @Test
+    @WithMockUser(roles = "USER")
+    void transferBetweenCards_MissingDescription_ReturnsUnprocessableContent_Empty_SenderCardId() throws Exception {
+
+        doThrow(new IllegalArgumentException("senderCardId: ID карты не может быть пустым"))
+                .when(checkDto).checkFields(any(TransferDto.class));
+
+        when(userService.getCurrentUserId()).thenReturn(1L);
+        when(transactionService.transferBetweenUserCards(
+                anyLong(), anyLong(), anyLong(), any(BigDecimal.class), anyString()))
+                .thenReturn(transactionDto);
+
+        mockMvc.perform(post("/api/transactions/transfer")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "senderCardId": "",
+                                    "receiverCardId": 2,
+                                    "amount": 100.0
+                                }
+                                """))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$[0].status").value(422))
+                .andExpect(jsonPath("$[0].message").value("senderCardId: ID карты не может быть пустым"));
     }
 
     @Test

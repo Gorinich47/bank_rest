@@ -11,11 +11,15 @@ import com.example.bankcards.repository.UserRepository;
 import com.example.bankcards.util.ChecksData;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -31,16 +35,17 @@ import static org.mockito.Mockito.*;
 
 @SpringBootTest
 @Import(SecurityConfig .class)
+@ExtendWith(MockitoExtension.class) // ОБЯЗАТЕЛЬНО
 public class AuthServiceTest {
 
-//    @MockitoBean(name = "userService") // Создает мок и кладет его в контекст теста
-//    private UserService userService;
-
-    @Autowired
+    @InjectMocks
     private AuthService authService;
 
     @MockitoBean
-    private UserRepository userRepository;
+    private UserRepository userRepository; // Добавьте это поле
+
+    @MockitoBean(name = "userService") // Создает мок и кладет его в контекст теста
+    private com.example.bankcards.service.UserService userService;
 
     @MockitoBean
     private JwtService jwtService;
@@ -51,8 +56,8 @@ public class AuthServiceTest {
     @MockitoBean
     private PasswordEncoder passwordEncoder;
 
-    //@MockitoBean
-    private ChecksData checksData;
+    @MockitoBean
+    private CheckService checkService;
 
     private User user;
     private LoginRequestDto loginRequest;
@@ -66,7 +71,8 @@ public class AuthServiceTest {
                 .username("Admin")
                 .firstName("Иван")
                 .lastName("Петров")
-                .email("admin@example.com")
+                .email("ivanpetrov@example.com")
+                .password("123")
                 .role(Role.USER)
                 .build();
 
@@ -101,65 +107,57 @@ public class AuthServiceTest {
     @Test
     void register_ValidData_CreatesUser() {
         // Arrange
-        try (MockedStatic<ChecksData> mocked = Mockito.mockStatic(ChecksData.class)) {
-
-            mocked.when(() -> ChecksData.checkRegistrationData(any(RegistrationDto.class)))
-                    .thenReturn(null);
-
-            when(userRepository.existsByUsername("testuser")).thenReturn(false);
-            when(userRepository.existsByEmail("test@example.com")).thenReturn(false);
-            when(passwordEncoder.encode("password123")).thenReturn("encoded-password");
-            when(userRepository.save(any(User.class))).thenReturn(user);
-
+        System.out.println("---------------------------------------------- 0");
+        doNothing().when(checkService).checkFields(registrationDto);
+        //doNothing().when(userService).existsByUsername("Admin");
+        //doNothing().when(userService).existsByEmail("ivanpetrov@example.com");
+        System.out.println("---------------------------------------------- 01");
+        when(passwordEncoder.encode("123")).thenReturn("encoded-password");
+        System.out.println("---------------------------------------------- 02");
+        when(userService.save(any(User.class))).thenReturn(user);
+        System.out.println("---------------------------------------------- 03");
             // Act
-            String responseMessage = "";
-            try {
-                authService.register(registrationDto);
-                responseMessage = "Регистрация прошла успешно";
-            } catch (Exception e) {
-            }
-            ;
-
+        authService.register(registrationDto);
+        System.out.println("---------------------------------------------- 04");
             // Assert
-            assertEquals("Регистрация прошла успешно", responseMessage);
-            verify(userRepository, times(1)).save(any(User.class));
-        }
+        verify(userService, times(1)).save(any(User.class));
+
     }
 
     @Test
     void register_UsernameExists_ThrowsAlreadyExistsException() {
         // Arrange
-        try (MockedStatic<ChecksData> mocked = Mockito.mockStatic(ChecksData.class)) {
+        doNothing().when(checkService).checkFields(registrationDto);
+        doThrow(new DataIntegrityViolationException("Email уже занят"))
+                .when(userService).existsByUsername("Admin");
+        doNothing().when(userService).existsByEmail("ivanpetrov@example.com");
+        // Act & Assert
+        assertThrows(DataIntegrityViolationException.class, () -> {
+            authService.register(registrationDto);
+        });
 
-            mocked.when(() -> ChecksData.checkRegistrationData(any(RegistrationDto.class)))
-                    .thenReturn(null);
-            //when(checksData.checkRegistrationData(registrationDto)).thenReturn(null);
-            when(userRepository.existsByUsername("user")).thenReturn(true);
+        verify(userService, never()).save(any());
 
-            // Act & Assert
-            assertThrows(AlreadyExistsException.class, () -> {
-                authService.register(registrationDto);
-            });
-            verify(userRepository, never()).save(any());
-        }
     }
 
     @Test
     void register_EmailExists_ThrowsAlreadyExistsException() {
         // Arrange
-        try (MockedStatic<ChecksData> mocked = Mockito.mockStatic(ChecksData.class)) {
+        System.out.println("---------------------------------------------- 0");
+        doNothing().when(checkService).checkFields(any());
 
-            mocked.when(() -> ChecksData.checkRegistrationData(any(RegistrationDto.class)))
-                    .thenReturn(null);
-            when(userRepository.existsByUsername("testuser")).thenReturn(false);
-            when(userRepository.existsByEmail("test@example.com")).thenReturn(true);
+        doNothing().when(userService).existsByUsername(anyString());
+        System.out.println("---------------------------------------------- 1");
+        doThrow(new AlreadyExistsException("Email уже занят"))
+                .when(userService).existsByEmail(anyString());
+        System.out.println("---------------------------------------------- 2");
+        // Act & Assert
+        assertThrows(AlreadyExistsException.class, () -> {
+                    authService.register(registrationDto);
+                });
+        System.out.println("---------------------------------------------- 3");
+        verify(userService, never()).save(any());
 
-            // Act & Assert
-            assertThrows(AlreadyExistsException.class, () -> {
-                authService.register(registrationDto);
-            });
-            verify(userRepository, never()).save(any());
-        }
     }
 
 

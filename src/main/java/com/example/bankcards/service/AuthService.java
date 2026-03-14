@@ -9,6 +9,7 @@ import com.example.bankcards.entity.User;
 import com.example.bankcards.exception.InvalidTokenException;
 import com.example.bankcards.repository.TokensRepository;
 import com.example.bankcards.repository.UserRepository;
+import com.example.bankcards.util.FieldChecker;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +33,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final UserService userService;
+    private final CheckService checkService;
     private final UserRepository userRepository;
     private final TokensRepository tokensRepository;
 
@@ -40,19 +42,26 @@ public class AuthService {
     public AuthService(AuthenticationManager authenticationManager,
                        PasswordEncoder passwordEncoder,
                        JwtService jwtService,
-                       UserService userService, UserRepository userRepository,
+                       UserService userService,
+                       CheckService checkService,
+                       UserRepository userRepository,
                        TokensRepository tokensRepository
                        ) {
         this.authenticationManager = authenticationManager;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.userService = userService;
+        this.checkService = checkService;
         this.userRepository = userRepository;
         this.tokensRepository = tokensRepository;
+
     }
 
     public void register(RegistrationDto request) {
 
+        checkService.checkFields(request);
+        userService.existsByUsername(request.getUsername());
+        userService.existsByEmail(request.getEmail());
 
         User user = User.builder()
                 .username(request.getUsername())
@@ -63,7 +72,7 @@ public class AuthService {
                 .role(request.getRole())
                 .build();
 
-        user = userRepository.save(user);
+        user = userService.save(user);
     }
 
     /** Аннулирует все активные токены */

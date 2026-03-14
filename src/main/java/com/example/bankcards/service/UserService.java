@@ -1,14 +1,24 @@
 package com.example.bankcards.service;
 
+import com.example.bankcards.dto.UserDto;
+import com.example.bankcards.exception.AlreadyExistsException;
+import com.example.bankcards.exception.ResourceNotFoundException;
 import com.example.bankcards.repository.UserRepository;
+import com.example.bankcards.util.UserDtoMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Primary;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+
+import java.util.Optional;
 
 
 //public interface UserService extends UserDetailsService {
@@ -20,9 +30,10 @@ public class UserService implements UserDetailsService{
 //    public boolean existsByEmail(String email);
 //    public Long getCurrentUserId();
 
-    @Autowired
+
     private final UserRepository userRepository;
 
+    @Autowired
     public UserService(UserRepository userRepository) {
         this.userRepository = userRepository;
     }
@@ -48,13 +59,53 @@ public class UserService implements UserDetailsService{
                 .disabled(false)
                 .build();
     }
-    //@Override
-    public boolean existsByUsername(String username) {
-        return userRepository.existsByUsername(username);
+
+    public com.example.bankcards.entity.User findByUsername(String username){
+        Optional<com.example.bankcards.entity.User> userCard = userRepository.findByUsername(username);
+        if (userCard.isEmpty()) throw new ResourceNotFoundException("Пользователь с именем "+username+" не существует");
+
+        return userCard.get();
+    }
+
+    public com.example.bankcards.entity.User  findById(Long id) {
+        Optional<com.example.bankcards.entity.User> userOptional = userRepository.findById(id);
+        if(userOptional.isEmpty()) throw new ResourceNotFoundException("Пользователь с id= "+id+" не существует");
+
+        return userOptional.get();
+    }
+
+    public UserDto findByIdDto(Long id) {
+        com.example.bankcards.entity.User user = findById(id);
+
+        UserDto userDto = UserDtoMapper.toDto(user);
+
+        return userDto;
+    }
+
+    public Page<com.example.bankcards.entity.User> findAll(Pageable pageable){
+        return userRepository.findAll(pageable);
+    }
+
+    public Page<UserDto> findAllDto(Pageable pageable){
+        Page<com.example.bankcards.entity.User> users = userRepository.findAll(pageable);
+        Page<UserDto> UsersDto = users.map(UserDtoMapper::toDto);
+        return UsersDto;
+    }
+
+    public void deleteById(Long userId) {
+        userRepository.deleteById(userId);
     }
     //@Override
-    public boolean existsByEmail(String email) {
-        return userRepository.existsByEmail(email);
+    public void existsByUsername(String username) {
+        if(userRepository.existsByUsername(username)) throw new AlreadyExistsException("Имя пользователя '"+username+"' уже занято");
+    }
+    //@Override
+    public void existsByEmail(String email) {
+        if(userRepository.existsByEmail(email)) throw new AlreadyExistsException("Email '"+email+"' уже занято");
+    }
+
+    public com.example.bankcards.entity.User save(com.example.bankcards.entity.User entity){
+        return userRepository.save(entity);
     }
 
     /**

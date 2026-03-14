@@ -1,8 +1,14 @@
 package com.example.bankcards.service;
 
+import com.example.bankcards.dto.CardBalansDto;
+import com.example.bankcards.dto.CardDto;
+import com.example.bankcards.dto.CardRegistrationDto;
 import com.example.bankcards.entity.Card;
+import com.example.bankcards.entity.User;
 import com.example.bankcards.enums.StatusCard;
+import com.example.bankcards.exception.AlreadyExistsException;
 import com.example.bankcards.repository.CardRepository;
+import com.example.bankcards.util.CardDtoMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -19,46 +25,66 @@ import java.util.stream.Collectors;
 public class CardService {
 
     private final CardRepository cardRepository;
-
+    private final CheckService checkService;
+    private final UserService userService;
     @Autowired
-    public CardService(CardRepository cardRepository) {
+    public CardService(CardRepository cardRepository, CheckService checkService,UserService userService) {
         this.cardRepository = cardRepository;
+        this.checkService = checkService;
+        this.userService = userService;
+
     }
 
-    public Page<Card> findAll(Pageable pageable) {
-        return cardRepository.findAll(pageable);
+    public Page<CardDto> findAllDto(Pageable pageable) {
+        Page<Card> cards = cardRepository.findAll(pageable);
+        Page<CardDto> cardsDto = cards.map(CardDtoMapper::toDto);
+        return cardsDto;
     }
 
-    public Page<Card> findByStatus(StatusCard statusCard, Pageable pageable) {
+    public Page<CardDto> findByStatus(StatusCard statusCard, Pageable pageable) {
         //String statusName = StatusCard.BLOCK_REQUEST.name();
-        return cardRepository.findByStatusIn(List.of(statusCard), pageable);
+        Page<Card> cards = cardRepository.findByStatusIn(List.of(statusCard), pageable);
+        Page<CardDto> cardsDto = cards.map(CardDtoMapper::toDto);
+
+        return cardsDto;
     }
 
-    public Page<Card> findByUserIdAndNumberContaining(Long userId, String number, Pageable pageable) {
+
+    public Page<CardDto> findByUserIdAndNumberContaining(String number, Pageable pageable) {
+
+        Page<Card> cards;
+
+        Long userId = userService.getCurrentUserId();
         if (number == null || number.isEmpty()) {
-            return cardRepository.findByUserId(userId, pageable);
+            cards= cardRepository.findByUserId(userId, pageable);
+        } else {
+            cards = cardRepository.findByUserIdAndNumberContaining(userId, number, pageable);
         }
-        return cardRepository.findByUserIdAndNumberContaining(userId, number, pageable);
+
+        return cards.map(CardDtoMapper::toDto);
     }
 
     @Transactional
-    public Card blockRequestCardForUser(Long cardId, Long userId) {
+    public CardDto blockRequestCardForUser(Long cardId) {
+
+        Long userId = userService.getCurrentUserId();
+
         Card card = cardRepository.findByIdAndUserId(cardId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Карта не найдена или не принадлежит пользователю"));
 
         if (card.getStatus()==StatusCard.BLOCKED) {
-            throw new IllegalArgumentException("Карта уже заблокирована");
+            throw new AlreadyExistsException("Карта уже заблокирована");
         }
 
         if (card.getStatus()==StatusCard.BLOCK_REQUEST) {
-            throw new IllegalArgumentException("Запрос на блокировку карты уже отправлен");
+            throw new AlreadyExistsException("Запрос на блокировку карты уже отправлен ранее");
         }
 
         card.setStatus(StatusCard.BLOCK_REQUEST);
 
-        Card blockCard = cardRepository.save(card);
+        Card blockCard = save(card);
 
-        return blockCard;
+        return CardDtoMapper.toDto(blockCard);
     }
 
     @Transactional(isolation = Isolation.REPEATABLE_READ)
@@ -67,44 +93,84 @@ public class CardService {
     }
 
     @Transactional(isolation = Isolation.REPEATABLE_READ)
-    public Card blockCardForUser(Long cardId, Long userId) {
+    public CardDto blockCardForUser(Long cardId) {
+
+        Long userId= userService.getCurrentUserId();
+
         Card card = cardRepository.findById(cardId)
                 .orElseThrow(() -> new IllegalArgumentException("Карта не найдена"));
 
         if (card.getStatus() == StatusCard.BLOCKED) {
-            throw new IllegalArgumentException("Карта уже заблокирована");
+            throw new AlreadyExistsException("Карта уже заблокирована");
         }
 
         card.setStatus(StatusCard.BLOCKED);
-        return cardRepository.save(card);
+        card = save(card);
+
+        CardDto cardsDto = CardDtoMapper.toDto(card);
+
+        return cardsDto;
     }
 
     @Transactional(isolation = Isolation.REPEATABLE_READ)
-    public Card activateCard(Long cardId) {
+    public CardDto activateCard(Long cardId) {
         Card card = cardRepository.findById(cardId)
                 .orElseThrow(() -> new IllegalArgumentException("Карта не найдена"));
 
         if (card.getStatus() == StatusCard.ACTIVE) {
-            throw new IllegalArgumentException("Карта уже активна");
+            throw new AlreadyExistsException(String.format("Карта id=%d № %s не может быть активирована, т.к. она уже активная.",cardId, CardDtoMapper.maskCardNumber(card.getNumber())));
+        }
+
+        if (card.getStatus() == StatusCard.EXPIRED) {
+            throw new AlreadyExistsException(String.format("Карта id=%d № %s не может быть активирована, т.к. истек срок действия.",cardId, CardDtoMapper.maskCardNumber(card.getNumber())));
         }
 
         card.setStatus(StatusCard.ACTIVE);
-        return cardRepository.save(card);
+
+        card = save(card);
+
+        CardDto CardDto = CardDtoMapper.toDto(card);
+
+        return CardDto;
     }
 
     @Transactional(isolation = Isolation.REPEATABLE_READ)
-    public List<Card> activateCards(List<Long> cardIds) {
+    public List<CardDto> activateCards(List<Long> cardIds) {
         return cardIds.stream().map(id -> {
             Card card = cardRepository.findById(id)
-                    .orElseThrow(() -> new IllegalArgumentException("Карта не найдена: " + id));
+                    .orElseThrow(() -> new IllegalArgumentException(String.format("Карта не найдена: %d", id)));
 
-            if (card.getStatus() != StatusCard.NEW_CARD) {
-                throw new IllegalArgumentException("Карта не может быть активирована (статус не NEW_CARD): " + id);
+            if (card.getStatus() == StatusCard.ACTIVE) {
+                throw new AlreadyExistsException(String.format("Карта id=%d № %s не может быть активирована, т.к. она уже активная.", id, CardDtoMapper.maskCardNumber(card.getNumber())));
+            }
+
+            if (card.getStatus() == StatusCard.EXPIRED) {
+                throw new AlreadyExistsException(String.format("Карта id=%d № %s не может быть активирована, т.к. истек срок действия.", id, CardDtoMapper.maskCardNumber(card.getNumber())));
             }
 
             card.setStatus(StatusCard.ACTIVE);
-            return cardRepository.save(card);
+            card = save(card);
+
+            CardDto cardDto =  CardDtoMapper.toDto(card);
+
+            return cardDto;
+
+
         }).collect(Collectors.toList());
+    }
+
+    public CardDto createCard(CardRegistrationDto card){
+
+        checkService.checkFields(card);
+        // Получим новую карту для пользователя (её нужно будет активировать)
+        User userCard = userService.findByUsername(card.getUsername());
+        Card newCard = CardDtoMapper.regDtoToCard(userCard);
+
+        Card saved = save(newCard);
+
+        CardDto cardDtoSaved = CardDtoMapper.toDto(saved);
+
+        return cardDtoSaved;
     }
 
     public Card save(Card card) {
@@ -118,9 +184,13 @@ public class CardService {
         cardRepository.deleteById(cardId);
     }
 
-    public Card findByIdForUser(Long cardId, Long userId){
-        return cardRepository.findByIdAndUserId(cardId, userId)
+    public CardBalansDto findByIdForUser(Long cardId){
+
+        Long userId = userService.getCurrentUserId();
+        Card card = cardRepository.findByIdAndUserId(cardId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Карта не найдена или не принадлежит пользователю"));
+
+        return CardDtoMapper.toBalanceDto(card);
     }
 
     public Optional<Card> findById(Long cardId) {

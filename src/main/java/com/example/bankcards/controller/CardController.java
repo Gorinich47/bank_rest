@@ -9,11 +9,13 @@ import com.example.bankcards.entity.User;
 import com.example.bankcards.enums.StatusCard;
 import com.example.bankcards.repository.UserRepository;
 import com.example.bankcards.service.CardService;
+import com.example.bankcards.service.CheckService;
 import com.example.bankcards.service.UserService;
 import com.example.bankcards.util.CardDtoMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -34,14 +36,10 @@ import java.util.stream.Collectors;
 public class CardController {
 
     private final CardService cardService;
-    private final UserService userService;
-    private final UserRepository userRepository;
 
     @Autowired
-    public CardController(CardService cardService, UserService userService, UserRepository userRepository) {
+    public CardController(CardService cardService) {
         this.cardService = cardService;
-        this.userService = userService;
-        this.userRepository = userRepository;
     }
 
     // Пользователь: просматривает свои карты с пагинацией и поиском
@@ -51,9 +49,10 @@ public class CardController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String number) {
+
         Pageable pageable = PageRequest.of(page, size);
-        Page<Card> cards = cardService.findByUserIdAndNumberContaining(userService.getCurrentUserId(), number, pageable);
-        Page<CardDto> cardDtos = cards.map(CardDtoMapper::toDto);
+        Page<CardDto> cardDtos = cardService.findByUserIdAndNumberContaining(number, pageable);
+
         return ResponseEntity.ok(PagedResponse.fromPage(cardDtos));
     }
 
@@ -61,16 +60,18 @@ public class CardController {
     @PostMapping("/block/{cardId}")
     @Operation(summary = "Пользователь: Запрос блокировки", description = "Пользователь может только сделать запрос блокировки по ид, а заблокировать может только Администратор")
     public ResponseEntity<CardDto> blockRequestCard(@PathVariable Long cardId) {
-        Card card = cardService.blockRequestCardForUser(cardId, userService.getCurrentUserId());
-        return ResponseEntity.ok(CardDtoMapper.toDto(card));
+
+        CardDto cardDto = cardService.blockRequestCardForUser(cardId);
+
+        return ResponseEntity.ok(cardDto);
     }
 
     // Пользователь: делает запрос на блокировку карты
     @GetMapping("/balance/{cardId}")
     @Operation(summary = "Пользователь: Баланс", description = "Запрос баланса карты по ид")
     public ResponseEntity<CardBalansDto> balanceCard(@PathVariable Long cardId) {
-        Card card = cardService.findByIdForUser(cardId, userService.getCurrentUserId());
-        return ResponseEntity.ok(CardDtoMapper.toBalanceDto(card));
+        CardBalansDto cardBalansDto = cardService.findByIdForUser(cardId);
+        return ResponseEntity.ok(cardBalansDto);
     }
 
     // Администратор: видит все карты
@@ -81,8 +82,7 @@ public class CardController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<Card> cards = cardService.findAll(pageable);
-        Page<CardDto> cardsDto = cards.map(CardDtoMapper::toDto);
+        Page<CardDto> cardsDto = cardService.findAllDto(pageable);
         return ResponseEntity.ok(PagedResponse.fromPage(cardsDto));
     }
 
@@ -94,8 +94,7 @@ public class CardController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<Card> cards = cardService.findByStatus(StatusCard.BLOCK_REQUEST, pageable);
-        Page<CardDto> cardDtos = cards.map(CardDtoMapper::toDto);
+        Page<CardDto> cardDtos = cardService.findByStatus(StatusCard.BLOCK_REQUEST, pageable);
         return ResponseEntity.ok(PagedResponse.fromPage(cardDtos));
     }
 
@@ -104,8 +103,8 @@ public class CardController {
     @PostMapping("/block_admin/{cardId}")
     @Operation(summary = "Администратор: Блокировка", description = "Администратор блокирует конкретную карту по ид")
     public ResponseEntity<CardDto> blockCard(@PathVariable Long cardId) {
-        Card card = cardService.blockCardForUser(cardId, userService.getCurrentUserId());
-        return ResponseEntity.ok(CardDtoMapper.toDto(card));
+        CardDto cardsDto = cardService.blockCardForUser(cardId);
+        return ResponseEntity.ok(cardsDto);
     }
 
     // Администратор: блокирует все карты по запросу пользователя
@@ -121,35 +120,21 @@ public class CardController {
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/create")
     @Operation(summary = "Администратор: Создание карты", description = "Администратор создает карту для пользователя. Номер карты случайный, баланс нулевой. Статус NEW_CARD")
-    public ResponseEntity<CardDto> createCard(@RequestBody CardRegistrationDto card) {
-        // Получим новую карту для пользователя (её нужно будет активировать)
-        Optional<User>  userCard = userRepository.findByUsername(card.getUsername());
-        if (userCard.isEmpty()){
-            return ResponseEntity.badRequest().build();
-        }
-        Card newCard = CardDtoMapper.regDtoToCard(userCard.get());
-
-
-        Card saved = cardService.save(newCard);
-        return ResponseEntity.ok(CardDtoMapper.toDto(saved));
+    public ResponseEntity<CardDto> createCard(@Valid @RequestBody CardRegistrationDto card) {
+        CardDto saved = cardService.createCard(card);
+        return ResponseEntity.ok(saved);
     }
 
     // Администратор: создаёт карты по списку
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/create_list")
     @Operation(summary = "Администратор: Создание карт по списку пользователей", description = "Администратор создает карты по списку пользователей. Номер карты случайный, баланс нулевой. Статус NEW_CARD")
-    public ResponseEntity<List<CardDto>> createListCard(@RequestBody List<CardRegistrationDto> cardList) {
+    public ResponseEntity<List<CardDto>> createListCard(@Valid @RequestBody List<CardRegistrationDto> cardList) {
 
         List<CardDto> savedList = new ArrayList<>();
         for(var card: cardList) {
-            // Получим новую карту для пользователя (её нужно будет активировать)
-            Optional<User> userCard = userRepository.findByUsername(card.getUsername());
-            if (userCard.isEmpty()) {
-                return ResponseEntity.badRequest().build();
-            }
-            Card newCard = CardDtoMapper.regDtoToCard(userCard.get());
-            Card saved = cardService.save(newCard);
-            savedList.add(CardDtoMapper.toDto(saved));
+            CardDto saved = cardService.createCard(card);
+            savedList.add(saved);
         }
         return ResponseEntity.ok(savedList);
     }
@@ -159,8 +144,8 @@ public class CardController {
     @PostMapping("/activate/{cardId}")
     @Operation(summary = "Администратор: Активация карты", description = "Администратор активирует существующую карту по ид")
     public ResponseEntity<CardDto> activateCard(@PathVariable Long cardId) {
-        Card card = cardService.activateCard(cardId);
-        return ResponseEntity.ok(CardDtoMapper.toDto(card));
+        CardDto card = cardService.activateCard(cardId);
+        return ResponseEntity.ok(card);
     }
 
     // Администратор: массовая активация карт по списку ID
@@ -168,11 +153,8 @@ public class CardController {
     @PostMapping("/activate_list")
     @Operation(summary = "Администратор: Активация списка карт", description = "Администратор активирует по списку существующие карты")
     public ResponseEntity<List<CardDto>> activateCards(@RequestBody List<Long> cardIds) {
-        List<Card> activatedCards = cardService.activateCards(cardIds);
-        List<CardDto> cardDtos = activatedCards.stream()
-                .map(CardDtoMapper::toDto)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(cardDtos);
+        List<CardDto> activatedCards = cardService.activateCards(cardIds);
+        return ResponseEntity.ok(activatedCards);
     }
 
     // Администратор: удаляет карту

@@ -1,8 +1,8 @@
 -------------------------------------------------------------------------------
 Test set: com.example.bankcards.service.AuthServiceTest
 -------------------------------------------------------------------------------
-Tests run: 4, Failures: 2, Errors: 0, Skipped: 0, Time elapsed: 2.923 s <<< FAILURE! -- in com.example.bankcards.service.AuthServiceTest
-com.example.bankcards.service.AuthServiceTest.register_EmailExists_ThrowsAlreadyExistsException -- Time elapsed: 0.009 s <<< FAILURE!
+Tests run: 4, Failures: 2, Errors: 0, Skipped: 0, Time elapsed: 3.265 s <<< FAILURE! -- in com.example.bankcards.service.AuthServiceTest
+com.example.bankcards.service.AuthServiceTest.register_EmailExists_ThrowsAlreadyExistsException -- Time elapsed: 0.008 s <<< FAILURE!
 org.opentest4j.AssertionFailedError: Expected com.example.bankcards.exception.AlreadyExistsException to be thrown, but nothing was thrown.
 	at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:159)
 	at org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:74)
@@ -10,7 +10,7 @@ org.opentest4j.AssertionFailedError: Expected com.example.bankcards.exception.Al
 	at org.junit.jupiter.api.Assertions.assertThrows(Assertions.java:3223)
 	at com.example.bankcards.service.AuthServiceTest.register_EmailExists_ThrowsAlreadyExistsException(AuthServiceTest.java:158)
 
-com.example.bankcards.service.AuthServiceTest.register_UsernameExists_ThrowsAlreadyExistsException -- Time elapsed: 0.002 s <<< FAILURE!
+com.example.bankcards.service.AuthServiceTest.register_UsernameExists_ThrowsAlreadyExistsException -- Time elapsed: 0.004 s <<< FAILURE!
 org.opentest4j.AssertionFailedError: Expected com.example.bankcards.exception.AlreadyExistsException to be thrown, but nothing was thrown.
 	at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:159)
 	at org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:74)
