@@ -3,34 +3,24 @@ package com.example.bankcards.service;
 import com.example.bankcards.config.SecurityConfig;
 import com.example.bankcards.dto.LoginRequestDto;
 import com.example.bankcards.dto.RegistrationDto;
-import com.example.bankcards.dto.TokenResponseDto;
 import com.example.bankcards.entity.User;
 import com.example.bankcards.enums.Role;
 import com.example.bankcards.exception.AlreadyExistsException;
 import com.example.bankcards.repository.UserRepository;
-import com.example.bankcards.util.ChecksData;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
-import java.util.List;
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
 @SpringBootTest
@@ -107,19 +97,12 @@ public class AuthServiceTest {
     @Test
     void register_ValidData_CreatesUser() {
         // Arrange
-        System.out.println("---------------------------------------------- 0");
         doNothing().when(checkService).checkFields(registrationDto);
-        //doNothing().when(userService).existsByUsername("Admin");
-        //doNothing().when(userService).existsByEmail("ivanpetrov@example.com");
-        System.out.println("---------------------------------------------- 01");
         when(passwordEncoder.encode("123")).thenReturn("encoded-password");
-        System.out.println("---------------------------------------------- 02");
         when(userService.save(any(User.class))).thenReturn(user);
-        System.out.println("---------------------------------------------- 03");
-            // Act
+        // Act
         authService.register(registrationDto);
-        System.out.println("---------------------------------------------- 04");
-            // Assert
+        // Assert
         verify(userService, times(1)).save(any(User.class));
 
     }
@@ -143,22 +126,17 @@ public class AuthServiceTest {
     @Test
     void register_EmailExists_ThrowsAlreadyExistsException() {
         // Arrange
-        System.out.println("---------------------------------------------- 0");
-        doNothing().when(checkService).checkFields(any());
 
+        doNothing().when(checkService).checkFields(any());
         doNothing().when(userService).existsByUsername(anyString());
-        System.out.println("---------------------------------------------- 1");
         doThrow(new AlreadyExistsException("Email уже занят"))
                 .when(userService).existsByEmail(anyString());
-        System.out.println("---------------------------------------------- 2");
         // Act & Assert
         assertThrows(AlreadyExistsException.class, () -> {
                     authService.register(registrationDto);
                 });
-        System.out.println("---------------------------------------------- 3");
         verify(userService, never()).save(any());
 
     }
-
 
 }

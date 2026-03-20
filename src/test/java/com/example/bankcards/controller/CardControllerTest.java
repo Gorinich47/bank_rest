@@ -36,6 +36,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
@@ -82,6 +84,7 @@ public class CardControllerTest {
     private CardDto cardDto;
     private CardBalansDto balanceDto;
     private Page<Card> cardPage;
+    private Page<CardDto> cardDtoPage;
     private PagedResponse<CardDto> pagedResponse;
 
 
@@ -142,15 +145,18 @@ public class CardControllerTest {
 
         cardPage = new PageImpl<>(List.of(card), PageRequest.of(0, 10), 1);
 
+        cardDtoPage = new PageImpl<>(List.of(CardDtoMapper.toDto(card)), PageRequest.of(0, 10), 1);
+
         pagedResponse = PagedResponse.fromPage(cardPage.map(CardDtoMapper::toDto));
+        //pagedDtoResponse = PagedResponse.fromPage(cardDtoPage.map(CardDtoMapper::toDto));
     }
 
     @Test
     @WithMockUser(roles = ROLE_USER)
     void getMyCards_ValidRequest_ReturnsPagedResponse() throws Exception {
-        when(userService.getCurrentUserId()).thenReturn(1L);
-        when(cardService.findByUserIdAndNumberContaining(1L, null, PageRequest.of(0, 10)))
-                .thenReturn(cardPage);
+
+        when(cardService.findByUserIdAndNumberContaining(null,  PageRequest.of(0, 10)))
+                .thenReturn(cardDtoPage);
 
         mockMvc.perform(get("/api/cards/my")
                         .param("page", "0")
@@ -165,9 +171,9 @@ public class CardControllerTest {
     @Test
     @WithMockUser(roles = ROLE_USER)
     void getMyCards_WithSearchNumber_ReturnsFilteredCards() throws Exception {
-        when(userService.getCurrentUserId()).thenReturn(1L);
-        when(cardService.findByUserIdAndNumberContaining(1L, "1234", PageRequest.of(0, 10)))
-                .thenReturn(cardPage);
+
+        when(cardService.findByUserIdAndNumberContaining("1234",  PageRequest.of(0, 10)))
+                .thenReturn(cardDtoPage);
 
         mockMvc.perform(get("/api/cards/my")
                         .param("page", "0")
@@ -187,10 +193,8 @@ public class CardControllerTest {
     @Test
     @WithMockUser(roles = ROLE_USER)
     void blockRequestCard_ValidId_ReturnsUpdatedCard() throws Exception {
-
-        card.setStatus(StatusCard.BLOCK_REQUEST);
-        when(userService.getCurrentUserId()).thenReturn(1L);
-        when(cardService.blockRequestCardForUser(1L, 1L)).thenReturn(card);
+        cardDto.setStatus(StatusCard.BLOCK_REQUEST);
+        when(cardService.blockRequestCardForUser(1L)).thenReturn(cardDto);
 
         mockMvc.perform(post("/api/cards/block/1")
                         .contentType(MediaType.APPLICATION_JSON))
@@ -198,7 +202,7 @@ public class CardControllerTest {
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.status").value("BLOCK_REQUEST"));
 
-        verify(cardService, times(1)).blockRequestCardForUser(1L, 1L);
+        verify(cardService, times(1)).blockRequestCardForUser(1L);
     }
 
     @Test
@@ -210,15 +214,15 @@ public class CardControllerTest {
     @Test
     @WithMockUser(roles = ROLE_USER)
     void balanceCard_ValidId_ReturnsBalance() throws Exception {
-        when(userService.getCurrentUserId()).thenReturn(1L);
-        when(cardService.findByIdForUser(1L, 1L)).thenReturn(card);
+
+        when(cardService.findByIdForUser(1L)).thenReturn(balanceDto);
 
         mockMvc.perform(get("/api/cards/balance/1")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.balance").value(1000.0));
 
-        verify(cardService, times(1)).findByIdForUser(1L, 1L);
+        verify(cardService, times(1)).findByIdForUser(1L);
     }
 
     @Test
@@ -231,7 +235,7 @@ public class CardControllerTest {
     @WithMockUser(roles = ROLE_ADMIN)
     void getAllCards_ReturnsPagedResponse() throws Exception {
 
-        when(cardService.findAll(PageRequest.of(0, 10))).thenReturn(cardPage);
+        when(cardService.findAllDto(PageRequest.of(0, 10))).thenReturn(cardDtoPage);
 
         mockMvc.perform(get("/api/cards/all")
                         .param("page", "0")
@@ -252,11 +256,10 @@ public class CardControllerTest {
     @WithMockUser(roles = ROLE_ADMIN)
     void getAllBlockRequestCards_ReturnsOnlyBlockRequests() throws Exception {
 
-        card.setStatus(StatusCard.BLOCK_REQUEST);
-        cardPage = new PageImpl<>(List.of(card), PageRequest.of(0, 10), 1);
+        cardDtoPage.forEach(cardDto -> cardDto.setStatus(StatusCard.BLOCK_REQUEST));
 
         when(cardService.findByStatus(StatusCard.BLOCK_REQUEST, PageRequest.of(0, 10)))
-                .thenReturn(cardPage);
+                .thenReturn(cardDtoPage);
 
         mockMvc.perform(get("/api/cards/all_block_request")
                         .param("page", "0")
@@ -270,8 +273,7 @@ public class CardControllerTest {
     @WithMockUser(roles = ROLE_ADMIN)
     void blockCard_ValidId_ReturnsBlockedCard() throws Exception {
 
-        when(userService.getCurrentUserId()).thenReturn(1L);
-        when(cardService.blockCardForUser(1L, 1L)).thenReturn(card);
+        when(cardService.blockCardForUser(1L)).thenReturn(cardDto);
 
         mockMvc.perform(post("/api/cards/block_admin/1")
                         .contentType(MediaType.APPLICATION_JSON))
@@ -295,13 +297,7 @@ public class CardControllerTest {
     @WithMockUser(roles = ROLE_ADMIN)
     void createCard_ValidData_ReturnsCreatedCard() throws Exception {
 
-        CardRegistrationDto regDto = new CardRegistrationDto();
-        regDto.setUsername("user");
-
-        User user = User.builder().id(1L).username("user").build();
-
-        when(userService.findByUsername("user")).thenReturn(user);
-        when(cardService.save(any(Card.class))).thenReturn(card);
+        when(cardService.createCard(any(CardRegistrationDto.class))).thenReturn(cardDto);
 
         mockMvc.perform(post("/api/cards/create")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -313,17 +309,14 @@ public class CardControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1));
 
-        verify(cardService, times(1)).save(any(Card.class));
+        verify(cardService, times(1)).createCard(any(CardRegistrationDto.class));
     }
 
     @Test
     @WithMockUser(roles = ROLE_ADMIN)
     void createCard_UserNotFound_ReturnsBadRequest() throws Exception {
 
-        CardRegistrationDto regDto = new CardRegistrationDto();
-        regDto.setUsername("unknown");
-
-        when(userService.findByUsername("unknown"))
+        when(cardService.createCard(any(CardRegistrationDto.class)))
                  .thenThrow(new ResourceNotFoundException("Пользователь с именем 'unknown' не существует"));
 
         mockMvc.perform(post("/api/cards/create")
@@ -341,24 +334,14 @@ public class CardControllerTest {
     @Test
     @WithMockUser(roles = ROLE_ADMIN)
     void createListCard_AllValid_ReturnsListOfCards() throws Exception {
-//        var regDto1 = new CardRegistrationDto();
-//        regDto1.setUsername("user1");
-//        var regDto2 = new CardRegistrationDto();
-//        regDto2.setUsername("user2");
-//
-        User user1 = User.builder().id(1L).username("user1").build();
-        User user2 = User.builder().id(2L).username("user2").build();
-//
-        when(userService.findByUsername("user1")).thenReturn(user1);
-        when(userService.findByUsername("user2")).thenReturn(user2);
 
-        AtomicLong idGenerator = new AtomicLong(1);
+        // Создаем объекты, которые хотим получить на выходе
+        CardDto cardDto1 = CardDto.builder().id(1L).user("user1").build();
+        CardDto cardDto2 = CardDto.builder().id(2L).user("user2").build();
 
-        when(cardService.save(any(Card.class))).thenAnswer(invocation -> {
-            Card card = invocation.getArgument(0);
-            card.setId(idGenerator.getAndIncrement());
-            return card;
-        });
+        // Настраиваем мок: первый вызов вернет card1, второй — card2
+        when(cardService.createCard(any(CardRegistrationDto.class)))
+                .thenReturn(cardDto1, cardDto2);
 
         mockMvc.perform(post("/api/cards/create_list")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -369,6 +352,7 @@ public class CardControllerTest {
                                 ]
                                 """))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$[0].id").value(1));
     }
@@ -377,15 +361,14 @@ public class CardControllerTest {
     @WithMockUser(roles = ROLE_ADMIN)
     void createListCard_OneUserNotFound_ReturnsNotFound() throws Exception {
 
-        User user = User.builder().id(1L).build();
+        // Создаем объекты, которые хотим получить на выходе
+        CardDto cardDto1 = CardDto.builder().id(1L).user("user1").build();
+        CardDto cardDto2 = CardDto.builder().id(2L).user("user2").build();
 
-        doNothing().when(checkDto).checkFields(any(CardRegistrationDto.class));
-
-
-        when(userService.findByUsername("unknown"))
-                .thenThrow(new ResourceNotFoundException("Пользователь с именем 'unknown' не существует"));
-
-        when(userService.findByUsername("user1")).thenReturn(user);
+        // Настраиваем мок: первый вызов вернет card1, второй — card2
+        when(cardService.createCard(any(CardRegistrationDto.class)))
+            //.thenReturn(cardDto1, cardDto2);
+            .thenThrow(new ResourceNotFoundException("Пользователь с именем 'unknown' не существует"));
 
         mockMvc.perform(post("/api/cards/create_list")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -403,8 +386,8 @@ public class CardControllerTest {
     @Test
     @WithMockUser(roles = ROLE_ADMIN)
     void activateCard_ValidId_ReturnsActivatedCard() throws Exception {
-        card.setStatus(StatusCard.ACTIVE);
-        when(cardService.activateCard(1L)).thenReturn(card);
+
+        when(cardService.activateCard(1L)).thenReturn(cardDto);
 
         mockMvc.perform(post("/api/cards/activate/1")
                         .contentType(MediaType.APPLICATION_JSON))
@@ -416,7 +399,7 @@ public class CardControllerTest {
     @Test
     @WithMockUser(roles = ROLE_ADMIN)
     void activateCards_ValidList_ReturnsActivatedCards() throws Exception {
-        when(cardService.activateCards(List.of(1L, 2L))).thenReturn(List.of(card, card));
+        when(cardService.activateCards(List.of(1L, 2L))).thenReturn(List.of(cardDto, cardDto));
 
         mockMvc.perform(post("/api/cards/activate_list")
                         .contentType(MediaType.APPLICATION_JSON)

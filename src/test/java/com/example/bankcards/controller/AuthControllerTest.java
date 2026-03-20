@@ -23,6 +23,8 @@ import org.springframework.test.context.bean.override.mockito.*;
 import org.springframework.test.web.servlet.MockMvc;
 
 
+import java.util.List;
+
 import static org.mockito.Mockito.*;
 import static org.mockito.Mockito.times;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -144,11 +146,7 @@ public class AuthControllerTest {
     @Test
     void register_ValidData_ReturnsSuccess() throws Exception {
 
-
-            doNothing().when(checkDto).checkFields(registrationDto);
-            doNothing().when(userService).existsByUsername("Admin");
-            doNothing().when(userService).existsByEmail("ivanpetrov@example.com");
-            //when(ChecksData.checkRegistrationData(registrationDto)).thenReturn(null);
+            doNothing().when(authService).register(registrationDto);
 
             mockMvc.perform(post("/api/auth/registration")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -172,9 +170,6 @@ public class AuthControllerTest {
     @Test
     void register_UsernameExists_ReturnsConflict() throws Exception {
 
-        //doNothing().when(checkDto).checkFields(registrationDto);
-        //doThrow(new AlreadyExistsException("Имя пользователя уже занято"))
-        //    .when(userService).existsByUsername("Admin");
         // Вернёт new ErrorResponseDTO(HttpStatus.CONFLICT, ex,"Conflict")
         /*
         {
@@ -186,7 +181,7 @@ public class AuthControllerTest {
             "timestamp":"2026-03-14T14:54:01.1694515"
         }
          */
-        //doNothing().when(userService).existsByEmail("ivanpetrov@example.com");
+
 
         doThrow(new AlreadyExistsException("Имя пользователя уже занято"))
             .when(authService).register(registrationDto);
@@ -211,11 +206,6 @@ public class AuthControllerTest {
     @Test
     void register_EmailExists_ReturnsConflict() throws Exception {
 
-//        doNothing().when(checkDto).checkFields(registrationDto);
-//        doNothing().when(userService).existsByUsername("Admin");
-//        doThrow(new AlreadyExistsException("Email уже занят"))
-//                .when(userService).existsByEmail("ivanpetrov@example.com");
-
         doThrow(new AlreadyExistsException("Email уже занят"))
                 .when(authService).register(registrationDto);
 
@@ -239,12 +229,8 @@ public class AuthControllerTest {
     @Test
     void register_EmptyField_ReturnsUnprocessableContent() throws Exception {
 
-        //doNothing().when(checkDto).checkFields(registrationDto);
-        doNothing().when(userService).existsByUsername("Admin");
-        doNothing().when(userService).existsByEmail("ivanpetrov@example.com");
-
         doThrow(new IllegalArgumentException("username: поле не может быть пустым"))
-                .when(checkDto).checkFields(any(RegistrationDto.class));
+                .when(authService).register(any(RegistrationDto.class));
 
         mockMvc.perform(post("/api/auth/registration")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -265,14 +251,9 @@ public class AuthControllerTest {
 
     @Test
     void register_WithoutField_ReturnsUnprocessableContent() throws Exception {
-        try (MockedStatic<ChecksData> mocked = Mockito.mockStatic(ChecksData.class)) {
 
-            //doNothing().when(checkDto).checkFields(registrationDto);
             doThrow(new IllegalArgumentException("username: поле не может быть пустым"))
-                    .when(checkDto).checkFields(any(RegistrationDto.class));
-
-            doNothing().when(userService).existsByUsername("Admin");
-            doNothing().when(userService).existsByEmail("ivanpetrov@example.com");
+                    .when(authService).register(any(RegistrationDto.class));
 
             mockMvc.perform(post("/api/auth/registration")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -288,65 +269,46 @@ public class AuthControllerTest {
                     .andExpect(status().isUnprocessableContent())
                     .andExpect(jsonPath("$[0].status").value(422))
                     .andExpect(jsonPath("$[0].message").value("username: поле не может быть пустым"));
-        }
     }
 
     @Test
     void registerList_AllValid_ReturnsSuccess() throws Exception {
-        try (MockedStatic<ChecksData> mocked = Mockito.mockStatic(ChecksData.class)) {
 
-            doNothing().when(userService).existsByUsername("user1");
-            doNothing().when(userService).existsByEmail("ivanpetrov2@example.com");
-            doNothing().when(checkDto).checkFields(registrationDto1);
+        List<RegistrationDto> inputList = List.of(registrationDto1, registrationDto2);
 
-            doNothing().when(userService).existsByUsername("user2");
-            doNothing().when(userService).existsByEmail("ivanpetrov1@example.com");
-            doNothing().when(checkDto).checkFields(registrationDto2);
+        mockMvc.perform(post("/api/auth/registration_list")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                [
+                                    {
+                                        "username": "user1",
+                                        "firstName": "Иван1",
+                                        "lastName": "Петров1",
+                                        "email": "ivanpetrov1@example.com",
+                                        "password": "1234",
+                                         "role": "USER"
+                                    },
+                                    {
+                                        "username": "user2",
+                                        "firstName": "Иван2",
+                                        "lastName": "Петров2",
+                                        "email": "ivanpetrov2@example.com",
+                                        "password": "1234",
+                                        "role": "USER"
+                                    }
+                                ]
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(content().string("Регистрация прошла успешно"));
 
-            mockMvc.perform(post("/api/auth/registration_list")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content("""
-                                    [
-                                        {
-                                            "username": "user1",
-                                            "firstName": "Иван1",
-                                            "lastName": "Петров1",
-                                            "email": "ivanpetrov1@example.com",
-                                            "password": "1234",
-                                             "role": "USER"
-                                        },
-                                        {
-                                            "username": "user2",
-                                            "firstName": "Иван2",
-                                            "lastName": "Петров2",
-                                            "email": "ivanpetrov2@example.com",
-                                            "password": "1234",
-                                            "role": "USER"
-                                        }
-                                    ]
-                                    """))
-                    .andExpect(status().isOk())
-                    .andExpect(content().string("Регистрация прошла успешно"));
+        verify(authService, times(2)).register(any(RegistrationDto.class));
 
-            verify(authService, times(1)).register(eq(registrationDto1));
-            verify(authService, times(1)).register(eq(registrationDto2));
-        }
     }
 
     @Test
     void registerList_DuplicateUsername_ReturnsBadRequest() throws Exception {
-        try (MockedStatic<ChecksData> mocked = Mockito.mockStatic(ChecksData.class)) {
 
-//            doNothing().when(checkDto).checkFields(registrationDto);
-//            doNothing().when(userService).existsByUsername("user1");
-//            doNothing().when(userService).existsByEmail("user1@example.com");
-
-            doNothing().when(authService).register(registrationDto);
-
-//            doNothing().when(checkDto).checkFields(registrationDto1);
-//            doThrow(new AlreadyExistsException("Имя пользователя 'user2' уже занято"))// Уже существует
-//                    .when(userService).existsByUsername("user2");
-//            doNothing().when(userService).existsByEmail("user2@example.com");
+            //doNothing().when(authService).register(registrationDto);
 
             doThrow(new AlreadyExistsException("Имя пользователя 'user2' уже занято"))
                     .when(authService).register(registrationDto1);
@@ -376,7 +338,6 @@ public class AuthControllerTest {
                     .andExpect(status().isConflict())
                     .andExpect(jsonPath("$.status").value(409))
                     .andExpect(jsonPath("$.message").value("Имя пользователя 'user2' уже занято"));
-        }
     }
 
     @Test

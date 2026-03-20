@@ -49,6 +49,7 @@ public class UserControllerTest {
     private User user;
     private UserDto userDto;
     private Page<User> userPage;
+    private Page<UserDto> userPageDto;
     private PagedResponse<UserDto> pagedResponse;
 
     private final MockMvc mockMvc;
@@ -79,6 +80,7 @@ public class UserControllerTest {
                 .build();
 
         userPage = new PageImpl<>(java.util.List.of(user), PageRequest.of(0, 10), 1);
+        userPageDto = new PageImpl<>(java.util.List.of(userDto), PageRequest.of(0, 10), 1);
         pagedResponse = PagedResponse.fromPage(userPage.map(UserDtoMapper::toDto));
     }
 
@@ -86,7 +88,7 @@ public class UserControllerTest {
     @WithMockUser(roles = ROLE_ADMIN)
     public void getUserById_ExistingId_ReturnsUserDto() throws Exception {
 
-        when(userService.findById(1L)).thenReturn(user);
+        when(userService.findByIdDto(1L)).thenReturn(userDto);
 
         // Act & Assert
         mockMvc.perform(get("/api/users/1")
@@ -104,7 +106,7 @@ public class UserControllerTest {
     @WithMockUser(roles = ROLE_ADMIN)
     public void getUserById_NonExistingId_ReturnsNotFound() throws Exception {
         // Arrange
-        when(userService.findById(999L))
+        when(userService.findByIdDto(999L))
                 .thenThrow(new ResourceNotFoundException("Пользователь с id= 999 не существует"));
 
         // Act & Assert
@@ -126,7 +128,7 @@ public class UserControllerTest {
     @Test
     @WithMockUser(roles = "ADMIN")
     void getAllUsers_ReturnsPagedResponse() throws Exception {
-        when(userService.findAll(PageRequest.of(0, 10))).thenReturn(userPage);
+        when(userService.findAllDto(PageRequest.of(0, 10))).thenReturn(userPageDto);
 
         mockMvc.perform(get("/api/users")
                         .param("page", "0")
@@ -143,13 +145,13 @@ public class UserControllerTest {
                 .andExpect(jsonPath("$.page").value(0))
                 .andExpect(jsonPath("$.size").value(10));
 
-        verify(userService, times(1)).findAll(PageRequest.of(0, 10));
+        verify(userService, times(1)).findAllDto(PageRequest.of(0, 10));
     }
 
     @Test
     void getAllUsers_UnauthorizedUser_ReturnsPagedResponse() throws Exception {
 
-        when(userService.findAll(PageRequest.of(0, 10))).thenReturn(userPage);
+        when(userService.findAllDto(PageRequest.of(0, 10))).thenReturn(userPageDto);
 
         mockMvc.perform(get("/api/users")
                         .param("page", "0")

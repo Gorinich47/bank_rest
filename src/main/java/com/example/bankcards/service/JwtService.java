@@ -3,6 +3,7 @@ package com.example.bankcards.service;
 
 import com.example.bankcards.config.JwtConfig;
 import com.example.bankcards.repository.TokensRepository;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
@@ -73,15 +74,22 @@ public class JwtService {
     }
     /** токен действующий */
     public boolean isValidToken(String token, String username) {
-        // извлекаем имя из токена
-        final String usernameToken = extractUsername(token);
-        // проверяем, существует ли токен в репозитории и не был ли он отмечен как "вышедший".
-        boolean isValidToken = tokensRepository.findByAccessToken(token)
-                .map(t -> !t.isLoggedOut()).orElse(false);
-        // проверям и возвращаем результат
-        return (usernameToken.equals(username) /* имя совпадает */
-                && !isTokenExpired(token) /* токен не просрочился*/
-                && isValidToken); /*текущий токен еще действует*/
+        try {
+            // извлекаем имя из токена
+            final String usernameToken = extractUsername(token);
+            // проверяем, существует ли токен в репозитории и не был ли он отмечен как "вышедший".
+            boolean isValidToken = tokensRepository.findByAccessToken(token)
+                    .map(t -> !t.isLoggedOut())
+                    .orElse(false);
+            // проверям и возвращаем результат
+            return (usernameToken.equals(username) /* имя совпадает */
+                    && !isTokenExpired(token) /* токен не просрочился*/
+                    && isValidToken); /*текущий токен еще действует*/
+        } catch (ExpiredJwtException e) {
+            return false; // Токен просрочен — значит он не валиден
+        } catch (Exception e) {
+            return false; // Любая другая ошибка (подпись, формат) — тоже не валиден
+        }
     }
     /** рефреш токен действующий */
     public boolean isValidRefresh(String token, String username) {

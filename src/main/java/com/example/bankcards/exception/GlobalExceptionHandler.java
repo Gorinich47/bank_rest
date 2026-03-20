@@ -99,6 +99,22 @@ public class GlobalExceptionHandler {
                 request.getRequestURI());
     }
 
+    @ExceptionHandler(ExpiredJwtException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    @ApiResponse(responseCode = "401 ",
+            description = "Ошибка Токена",
+            content = @Content(schema = @Schema(implementation = ErrorResponseDTO.class)))
+    public ErrorResponseDTO handleExpiredJwtException(ExpiredJwtException ex,
+                                                           HttpServletRequest request) {
+        return new ErrorResponseDTO(
+                HttpStatus.UNAUTHORIZED,
+                ex,
+                ex.getMessage(),
+                "Flow Token Expired",
+                request.getRequestURI());
+    }
+    //
+
     @ExceptionHandler(AccessDeniedException.class)
     @ResponseStatus(HttpStatus.FORBIDDEN)
     @ApiResponse(responseCode = "403",
@@ -218,8 +234,6 @@ public class GlobalExceptionHandler {
                 "Unprocessable Content",
                 request.getRequestURI());
     }
-
-
 
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)

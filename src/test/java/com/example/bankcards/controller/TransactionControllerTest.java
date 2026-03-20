@@ -1,19 +1,18 @@
 package com.example.bankcards.controller;
 
 import com.example.bankcards.config.SecurityConfig;
-import com.example.bankcards.dto.*;
-import com.example.bankcards.util.*;
+import com.example.bankcards.dto.CardDto;
+import com.example.bankcards.dto.PagedResponse;
+import com.example.bankcards.dto.TransactionDto;
+import com.example.bankcards.dto.TransferDto;
 import com.example.bankcards.entity.User;
 import com.example.bankcards.enums.Role;
 import com.example.bankcards.enums.StatusCard;
 import com.example.bankcards.enums.StatusTransaction;
-import com.example.bankcards.service.CheckService;
 import com.example.bankcards.service.TransactionService;
-import com.example.bankcards.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
@@ -21,17 +20,9 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
-
 import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.test.context.bean.override.mockito.*;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-
-
-import static org.mockito.Mockito.*;
-import static org.mockito.Mockito.times;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -40,8 +31,10 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @Import(SecurityConfig.class)
 @WebMvcTest(com.example.bankcards.controller.TransactionController.class)
@@ -132,10 +125,8 @@ public class TransactionControllerTest {
     @WithMockUser(roles = "USER")
     void transferBetweenCards_ValidData_ReturnsTransactionDto() throws Exception {
 
-        doNothing().when(checkDto).checkFields(any(TransferDto.class));
-        when(userService.getCurrentUserId()).thenReturn(1L);
-        when(transactionService.transferBetweenUserCards(
-                anyLong(), anyLong(), anyLong(), any(BigDecimal.class), anyString()))
+
+        when(transactionService.transferBetweenUserCards(any(TransferDto.class)))
                 .thenReturn(transactionDto);
 
         mockMvc.perform(post("/api/transactions/transfer")
@@ -153,18 +144,14 @@ public class TransactionControllerTest {
                 .andExpect(jsonPath("$.amount").value(100.0))
                 .andExpect(jsonPath("$.description").value("Перевод между картами"));
 
-        verify(transactionService, times(1)).transferBetweenUserCards(
-                eq(1L), eq(1L), eq(2L), eq(BigDecimal.valueOf(100.0)), eq("Перевод между картами"));
+        verify(transactionService, times(1)).transferBetweenUserCards(any(TransferDto.class));
     }
 
     @Test
     @WithMockUser(roles = "USER")
     void transferBetweenCards_MissingDescription_UsesEmptyString() throws Exception {
 
-        doNothing().when(checkDto).checkFields(any(TransferDto.class));
-        when(userService.getCurrentUserId()).thenReturn(1L);
-        when(transactionService.transferBetweenUserCards(
-                anyLong(), anyLong(), anyLong(), any(BigDecimal.class), anyString()))
+        when(transactionService.transferBetweenUserCards(any(TransferDto.class)))
                 .thenReturn(transactionDto);
 
         mockMvc.perform(post("/api/transactions/transfer")
@@ -181,7 +168,7 @@ public class TransactionControllerTest {
                 .andExpect(jsonPath("$.amount").value(100.0));
 
         verify(transactionService, times(1)).transferBetweenUserCards(
-                anyLong(), anyLong(), anyLong(), any(BigDecimal.class), eq(""));
+                any(TransferDto.class));
     }
 
     @Test
@@ -189,12 +176,7 @@ public class TransactionControllerTest {
     void transferBetweenCards_MissingDescription_ReturnsUnprocessableContent_Null_senderCardId() throws Exception {
 
         doThrow(new IllegalArgumentException("senderCardId: ID карты не может быть пустым"))
-                .when(checkDto).checkFields(any(TransferDto.class));
-
-        when(userService.getCurrentUserId()).thenReturn(1L);
-        when(transactionService.transferBetweenUserCards(
-                anyLong(), anyLong(), anyLong(), any(BigDecimal.class), anyString()))
-                .thenReturn(transactionDto);
+                .when(transactionService).transferBetweenUserCards(any(TransferDto.class));
 
         mockMvc.perform(post("/api/transactions/transfer")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -214,12 +196,7 @@ public class TransactionControllerTest {
     void transferBetweenCards_MissingDescription_ReturnsUnprocessableContent_Empty_SenderCardId() throws Exception {
 
         doThrow(new IllegalArgumentException("senderCardId: ID карты не может быть пустым"))
-                .when(checkDto).checkFields(any(TransferDto.class));
-
-        when(userService.getCurrentUserId()).thenReturn(1L);
-        when(transactionService.transferBetweenUserCards(
-                anyLong(), anyLong(), anyLong(), any(BigDecimal.class), anyString()))
-                .thenReturn(transactionDto);
+                .when(transactionService).transferBetweenUserCards(any(TransferDto.class));
 
         mockMvc.perform(post("/api/transactions/transfer")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -237,6 +214,7 @@ public class TransactionControllerTest {
 
     @Test
     void transferBetweenCards_UnauthorizedUser_ReturnsForbidden() throws Exception {
+
         mockMvc.perform(post("/api/transactions/transfer")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
